@@ -8,62 +8,49 @@ import (
 	"github.com/cilium/ebpf/link"
 )
 
-// Link represents the programs attached to the function hooks.
-type Link struct {
-	cookies map[uint64]string
-	links   map[uint64]link.Link
+// Links represents the programs attached to the function hooks.
+type Links struct {
+	links map[uint64]link.Link
 }
 
-func (obj *Object) Attach(ctx context.Context, log_ *log.Logger, binPath string, probeNames []string, pid int) (ln *Link, err error) {
+func (obj *Object) Attach(ctx context.Context, log_ *log.Logger, binPath string, m *Map, pid int) (*Links, error) {
 	exe, err := link.OpenExecutable(binPath)
 	if err != nil {
 		return nil, err
 	}
 
-	ln = &Link{
-		cookies: make(map[uint64]string, len(probeNames)*2),
-		links:   make(map[uint64]link.Link, len(probeNames)*2),
+	links := &Links{
+		links: make(map[uint64]link.Link, m.NCookies()),
 	}
-	var id uint64
-	for i, name := range probeNames {
+	for i := 0; i < m.NCookies(); i++ {
 		if i%100 == 0 {
-			log_.Printf("attaching probe %d/%d", i, len(probeNames))
+			log_.Printf("attaching probe %d/%d", i, m.NCookies())
 		}
-		{
-			l, err := exe.Uprobe(name, obj.Uprobe, &link.UprobeOptions{
+		probe, isRet := m.Get(uint64(i))
+		var l link.Link
+		if isRet {
+			l, err = exe.Uretprobe(probe, obj.Uprobe, &link.UprobeOptions{
 				PID:    pid,
-				Cookie: id,
+				Cookie: uint64(i),
 			})
-			if err != nil {
-				log_.Printf("cannot attach probe %s: %v", name, err)
-				goto cleanup
-			}
-			ln.cookies[id] = name
-			ln.links[id] = l
-			id++
-		}
-		{
-			l, err := exe.Uretprobe(name, obj.Uprobe, &link.UprobeOptions{
+		} else {
+			l, err = exe.Uprobe(probe, obj.Uprobe, &link.UprobeOptions{
 				PID:    pid,
-				Cookie: id,
+				Cookie: uint64(i),
 			})
-			if err != nil {
-				log_.Printf("cannot attach probe %s: %v", name, err)
-				goto cleanup
-			}
-			ln.cookies[id] = name
-			ln.links[id] = l
-			id++
 		}
+		if err != nil {
+			log_.Printf("cannot attach probe %s: %v", probe, err)
+			links.Close()
+			return nil, err
+		}
+		links.links[uint64(i)] = l
 	}
 
-	return
-cleanup:
-	ln.Close()
-	return nil, err
+	return links, nil
 }
 
-func (l *Link) Close() error {
+func (l *Links) Close() error {
 	links := make([]io.Closer, 0, len(l.links))
 	for _, ln := range l.links {
 		links = append(links, ln)

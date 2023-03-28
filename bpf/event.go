@@ -25,6 +25,38 @@ func (obj *Object) NewReader(nPage int) (*Reader, error) {
 	}, nil
 }
 
+type Event struct {
+	Pid   uint64
+	Ts    uint64
+	Probe string
+	IsRet bool
+}
+
+// Read reads the next event.
+//
+// It returns nil if the reader is closed.
+func (r *Reader) Read(m *Map) *Event {
+	var e *rawEvent
+	for {
+		e, err := r.read()
+		if err != nil {
+			continue
+		}
+		if e == nil {
+			return nil
+		}
+		break
+	}
+
+	probe, isRet := m.Get(e.Cookie)
+	return &Event{
+		Pid:   e.Pid,
+		Ts:    e.Ts,
+		Probe: probe,
+		IsRet: isRet,
+	}
+}
+
 // rawEvent is the raw event format as it is passed from the BPF program to userspace.
 type rawEvent struct {
 	Pid    uint64
@@ -32,10 +64,10 @@ type rawEvent struct {
 	Cookie uint64
 }
 
-// Read reads the next rawEvent.
+// read reads the next rawEvent.
 //
 // It returns nil, nil if the reader is closed.
-func (r *Reader) Read() (*rawEvent, error) {
+func (r *Reader) read() (*rawEvent, error) {
 	record, err := r.rd.Read()
 	if err != nil {
 		if errors.Is(err, perf.ErrClosed) {
