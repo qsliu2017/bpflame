@@ -10,6 +10,9 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+//go:embed bpf.o
+var _bpfBytes []byte
+
 // Object is the binding of the BPF program and map.
 type Object struct {
 	Uprobe *ebpf.Program `ebpf:"uprobe"`
@@ -18,8 +21,6 @@ type Object struct {
 
 // Load loads the BPF program and map from the embedded ELF file into the kernel.
 func Load(ctx context.Context, l *log.Logger) (*Object, error) {
-	//go:embed bpf.o
-	var _bpfBytes []byte
 
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(_bpfBytes))
 	if err != nil {
