@@ -1,4 +1,4 @@
-package pkg
+package arch
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// ReadFuncSymbolNames reads the function symbols from the given binary file.
 func ReadFuncSymbolNames(ctx context.Context, l *log.Logger, binPath string) ([]string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
