@@ -6,22 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/cilium/ebpf/perf"
+	"go.uber.org/zap"
 )
 
 type Reader struct {
-	rd *perf.Reader
+	rd     *perf.Reader
+	logger *zap.Logger
 }
 
 // NewReader creates a new rawEventReader with nPage pages of buffer.
-func (obj *Object) NewReader(nPage int) (*Reader, error) {
+func (obj *Object) NewReader(nPage int, logger *zap.Logger) (*Reader, error) {
 	rd, err := perf.NewReader(obj.Events, nPage*os.Getpagesize())
 	if err != nil {
+		logger.Error("cannot create perf reader", zap.Error(err))
 		return nil, err
 	}
 	return &Reader{
-		rd: rd,
+		rd:     rd,
+		logger: logger,
 	}, nil
 }
 
@@ -35,10 +40,12 @@ type Event struct {
 // Read reads the next event.
 //
 // It returns nil if the reader is closed.
-func (r *Reader) Read(m *Map) *Event {
+func (r *Reader) Read(m Map) *Event {
 	var e *rawEvent
 	for {
-		e, err := r.read()
+		var err error
+		e, err = r.read()
+		r.logger.Debug("read raw event", zap.Error(err), zap.Any("event", e))
 		if err != nil {
 			continue
 		}
@@ -69,6 +76,7 @@ type rawEvent struct {
 // It returns nil, nil if the reader is closed.
 func (r *Reader) read() (*rawEvent, error) {
 	record, err := r.rd.Read()
+	r.logger.Debug("read perf record", zap.Error(err), zap.Any("record", record))
 	if err != nil {
 		if errors.Is(err, perf.ErrClosed) {
 			return nil, nil

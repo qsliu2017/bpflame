@@ -52,7 +52,7 @@ func main() {
 	logger.Info("attached")
 	defer links.Close()
 
-	rd, err := obj.NewReader(10)
+	rd, err := obj.NewReader(10, logger.With(zap.Namespace("perf_reader")))
 	if err != nil {
 		logger.Error("cannot create reader", zap.Error(err))
 	}
