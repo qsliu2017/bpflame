@@ -3,21 +3,22 @@ package arch
 import (
 	"context"
 	"debug/elf"
-	"log"
+
+	"go.uber.org/zap"
 )
 
 // ReadFuncSymbolNames reads the function symbols from the given binary file.
-func ReadFuncSymbolNames(ctx context.Context, l *log.Logger, binPath string) ([]string, error) {
+func ReadFuncSymbolNames(ctx context.Context, logger *zap.Logger, binPath string) ([]string, error) {
 	f, err := elf.Open(binPath)
 	if err != nil {
-		l.Printf("unable to open bin file: %v", err)
+		logger.Error("unable to open bin file", zap.Error(err))
 		return nil, err
 	}
 	defer f.Close()
 
 	symbols, err := f.Symbols()
 	if err != nil {
-		l.Printf("unable to read symbols: %v", err)
+		logger.Error("unable to read symbols", zap.Error(err))
 		return nil, err
 	}
 
@@ -28,7 +29,7 @@ func ReadFuncSymbolNames(ctx context.Context, l *log.Logger, binPath string) ([]
 		}
 		names = append(names, symbol.Name)
 	}
-	l.Printf("read %d function symbol from %s", len(names), binPath)
+	logger.Info("read function symbol names", zap.Int("n", len(names)), zap.String("path", binPath))
 
 	return names, nil
 }

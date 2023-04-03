@@ -4,14 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
-	"os"
 	"os/signal"
 	"sort"
 
 	"github.com/qsliu2017/bpflame/arch"
 	"github.com/qsliu2017/bpflame/bpf"
 	"github.com/qsliu2017/bpflame/flamegraph"
+	"go.uber.org/zap"
 )
 
 var (
@@ -27,39 +26,41 @@ func init() {
 }
 
 func main() {
+	logger, _ := zap.NewDevelopment()
+	defer logger.Sync()
+
 	ctx, cancel := signal.NotifyContext(context.Background())
 	defer cancel()
-	l := log.New(os.Stderr, "", log.LstdFlags)
 
-	probeNames, err := arch.ReadFuncSymbolNames(ctx, l, binPath)
+	probeNames, err := arch.ReadFuncSymbolNames(ctx, logger.With(zap.Namespace("arch")), binPath)
 	if err != nil {
-		l.Fatal(err)
+		return
 	}
 
 	m := bpf.NewMap(probeNames)
 
-	obj, err := bpf.Load(ctx, l)
+	obj, err := bpf.Load(ctx, logger.With(zap.Namespace("bpf")))
 	if err != nil {
-		l.Fatal(err)
+		return
 	}
 	defer obj.Close()
 
-	links, err := obj.Attach(ctx, l, binPath, m, pid)
+	links, err := obj.Attach(ctx, logger.With(zap.Namespace("obj")), binPath, m, pid)
 	if err != nil {
-		l.Fatal(err)
+		return
 	}
-	l.Printf("attached\n")
+	logger.Info("attached")
 	defer links.Close()
 
 	rd, err := obj.NewReader(10)
 	if err != nil {
-		l.Fatal(err)
+		logger.Error("cannot create reader", zap.Error(err))
 	}
 	defer rd.Close()
 
 	events := make([]*bpf.Event, 0)
 	defer func() {
-		l.Printf("read rest events\n")
+		logger.Info("read rest events")
 		// rest := rd.ReadAll(m)
 		// events = append(events, rest...)
 		sort.Slice(events, func(i, j int) bool { return events[i].Ts < events[j].Ts })

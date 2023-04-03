@@ -3,9 +3,9 @@ package bpf
 import (
 	"context"
 	"io"
-	"log"
 
 	"github.com/cilium/ebpf/link"
+	"go.uber.org/zap"
 )
 
 // Links represents the programs attached to the function hooks.
@@ -13,7 +13,7 @@ type Links struct {
 	links map[uint64]link.Link
 }
 
-func (obj *Object) Attach(ctx context.Context, log_ *log.Logger, binPath string, m *Map, pid int) (*Links, error) {
+func (obj *Object) Attach(ctx context.Context, logger *zap.Logger, binPath string, m *Map, pid int) (*Links, error) {
 	exe, err := link.OpenExecutable(binPath)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func (obj *Object) Attach(ctx context.Context, log_ *log.Logger, binPath string,
 	}
 	for i := 0; i < m.NCookies(); i++ {
 		if i%100 == 0 {
-			log_.Printf("attaching probe %d/%d", i, m.NCookies())
+			logger.Info("attaching probe", zap.Int("done", i), zap.Int("total", m.NCookies()))
 		}
 		probe, isRet := m.Get(uint64(i))
 		var l link.Link
@@ -40,7 +40,7 @@ func (obj *Object) Attach(ctx context.Context, log_ *log.Logger, binPath string,
 			})
 		}
 		if err != nil {
-			log_.Printf("cannot attach probe %s: %v", probe, err)
+			logger.Error("cannot attach probe", zap.String("probe", probe), zap.Error(err))
 			links.Close()
 			return nil, err
 		}

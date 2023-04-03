@@ -5,9 +5,9 @@ import (
 	"context"
 	_ "embed"
 	"io"
-	"log"
 
 	"github.com/cilium/ebpf"
+	"go.uber.org/zap"
 )
 
 //go:embed bpf.o
@@ -20,17 +20,17 @@ type Object struct {
 }
 
 // Load loads the BPF program and map from the embedded ELF file into the kernel.
-func Load(ctx context.Context, l *log.Logger) (*Object, error) {
+func Load(ctx context.Context, logger *zap.Logger) (*Object, error) {
 
 	spec, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(_bpfBytes))
 	if err != nil {
-		l.Printf("cannot load spec from elf file: %v", err)
+		logger.Error("cannot load spec from elf file", zap.Error(err))
 		return nil, err
 	}
 
 	var obj Object
 	if err := spec.LoadAndAssign(&obj, nil); err != nil {
-		l.Printf("cannot load bpf obj into kernel: %v", err)
+		logger.Error("cannot load bpf obj into kernel", zap.Error(err))
 		return nil, err
 	}
 
