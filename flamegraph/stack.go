@@ -14,7 +14,11 @@ type Proc struct {
 type Stack []*Proc
 
 func NewStack() Stack {
-	return make(Stack, 1)
+	p := &Proc{
+		Children: make([]*Proc, 0),
+	}
+	s := Stack{p}
+	return s
 }
 
 func (s *Stack) Push(name string, start int) {
