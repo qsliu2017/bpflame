@@ -24,7 +24,7 @@ func (obj *Object) Attach(ctx context.Context, logger *zap.Logger, binPath strin
 		logger: logger,
 	}
 	for i := 0; i < m.NCookies(); i++ {
-		if i%100 == 0 {
+		if i%(m.NCookies()/100) == 0 {
 			logger.Info("attaching probe", zap.Int("done", i), zap.Int("total", m.NCookies()))
 		}
 		probe, isRet := m.Get(uint64(i))
@@ -52,13 +52,15 @@ func (obj *Object) Attach(ctx context.Context, logger *zap.Logger, binPath strin
 }
 
 func (l *Links) Close() error {
-	for i, link := range l.links {
-		if i%100 == 0 {
-			l.logger.Info("closing link", zap.Uint64("done", i), zap.Int("total", len(l.links)))
+	var i int
+	for cookie, link := range l.links {
+		if i%(len(l.links)/100) == 0 {
+			l.logger.Info("closing link", zap.Int("done", i), zap.Int("total", len(l.links)))
 		}
 		if err := link.Close(); err != nil {
-			l.logger.Error("cannot close link", zap.Uint64("cookie", i), zap.Error(err))
+			l.logger.Error("cannot close link", zap.Uint64("cookie", cookie), zap.Error(err))
 		}
+		i++
 	}
 	return nil
 }
