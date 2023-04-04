@@ -16,7 +16,8 @@ var (
 	input  string
 	output string
 
-	pid        uint64
+	pid        int
+	tgid       int
 	ignore     string
 	ignoreTime bool
 )
@@ -24,7 +25,8 @@ var (
 func init() {
 	flag.StringVar(&input, "input", "", "")
 	flag.StringVar(&output, "output", "", "")
-	flag.Uint64Var(&pid, "pid", 0, "")
+	flag.IntVar(&pid, "pid", 0, "")
+	flag.IntVar(&tgid, "tgid", 0, "")
 	flag.StringVar(&ignore, "ignore", "", "")
 	flag.BoolVar(&ignoreTime, "ignore-time", false, "")
 	flag.Parse()
@@ -67,9 +69,13 @@ func main() {
 		if err := decoder.Decode(&e); err != nil {
 			break
 		}
-		if pid == 0 || e.Pid == pid {
-			stack = append(stack, &e)
+		if pid != 0 && e.Pid != pid {
+			continue
 		}
+		if tgid != 0 && e.Tgid != tgid {
+			continue
+		}
+		stack = append(stack, &e)
 	}
 	sort.Slice(stack, func(i, j int) bool { return stack[i].Ts < stack[j].Ts })
 

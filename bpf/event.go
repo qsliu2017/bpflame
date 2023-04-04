@@ -29,7 +29,8 @@ func (obj *Object) NewReader(nPage int, logger *zap.Logger) (*Reader, error) {
 }
 
 type Event struct {
-	Pid   uint64 `json:"pid"`
+	Pid   int    `json:"pid"`
+	Tgid  int    `json:"tgid"`
 	Ts    uint64 `json:"ts"`
 	Probe string `json:"probe"`
 	IsRet bool   `json:"is_ret"`
@@ -49,7 +50,8 @@ func (r *Reader) Read(m Map) (*Event, error) {
 
 	probe, isRet := m.Get(e.Cookie)
 	return &Event{
-		Pid:   e.Pid,
+		Pid:   int(e.PidTgid & ((1 << 32) - 1)),
+		Tgid:  int(e.PidTgid >> 32),
 		Ts:    e.Ts,
 		Probe: probe,
 		IsRet: isRet,
@@ -58,9 +60,9 @@ func (r *Reader) Read(m Map) (*Event, error) {
 
 // rawEvent is the raw event format as it is passed from the BPF program to userspace.
 type rawEvent struct {
-	Pid    uint64
-	Ts     uint64
-	Cookie uint64
+	PidTgid uint64
+	Ts      uint64
+	Cookie  uint64
 }
 
 // read reads the next rawEvent.

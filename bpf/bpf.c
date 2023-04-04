@@ -7,7 +7,7 @@
 char __license[] SEC("license") = "Dual MIT/GPL";
 
 struct event {
-  __u64 pid;
+  __u64 pid_tgid;
   __u64 ts;
   __u64 cookie;
 };
@@ -19,7 +19,7 @@ struct {
 SEC("uprobe/dummy")
 int uprobe(void *ctx) {
   struct event event = {
-      .pid = bpf_get_current_pid_tgid() & (((__u64)1 << 32) - 1),
+      .pid_tgid = bpf_get_current_pid_tgid(),
       .ts = bpf_ktime_get_boot_ns(),
       .cookie = bpf_get_attach_cookie(ctx),
   };
