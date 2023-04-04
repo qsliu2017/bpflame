@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/cilium/ebpf/perf"
 	"go.uber.org/zap"
@@ -31,10 +30,10 @@ func (obj *Object) NewReader(nPage int, logger *zap.Logger) (*Reader, error) {
 }
 
 type Event struct {
-	Pid   uint64
-	Ts    uint64
-	Probe string
-	IsRet bool
+	Pid   uint64 `json:"pid"`
+	Ts    uint64 `json:"ts"`
+	Probe string `json:"probe"`
+	IsRet bool   `json:"is_ret"`
 }
 
 // Read reads the next event.

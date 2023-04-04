@@ -2,26 +2,26 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
-	"fmt"
+	"os"
 	"os/signal"
-	"sort"
 
 	"github.com/qsliu2017/bpflame/arch"
 	"github.com/qsliu2017/bpflame/bpf"
-	"github.com/qsliu2017/bpflame/flamegraph"
 	"go.uber.org/zap"
 )
 
 var (
 	binPath string
 	pid     int
-	// timeout int
+	output  string
 )
 
 func init() {
 	flag.StringVar(&binPath, "bin", "", "")
 	flag.IntVar(&pid, "pid", 0, "")
+	flag.StringVar(&output, "output", "", "")
 	flag.Parse()
 }
 
@@ -29,7 +29,18 @@ func main() {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 
-	ctx, cancel := signal.NotifyContext(context.Background())
+	out := os.Stdout
+	if output != "" {
+		f, err := os.Create(output)
+		if err != nil {
+			logger.Error("cannot create output file", zap.Error(err))
+			return
+		}
+		defer f.Close()
+		out = f
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()
 
 	probeNames, err := arch.ReadFuncSymbolNames(ctx, logger.With(zap.Namespace("arch")), binPath)
@@ -58,23 +69,7 @@ func main() {
 	}
 	defer rd.Close()
 
-	events := make([]*bpf.Event, 0)
-	defer func() {
-		logger.Info("read rest events")
-		// rest := rd.ReadAll(m)
-		// events = append(events, rest...)
-		sort.Slice(events, func(i, j int) bool { return events[i].Ts < events[j].Ts })
-		stack := flamegraph.NewStack()
-		for _, e := range events {
-			if e.IsRet {
-				stack.Pop(e.Probe, int(e.Ts))
-			} else {
-				stack.Push(e.Probe, int(e.Ts))
-			}
-		}
-		fmt.Print(stack.Json())
-	}()
-
+	encoder := json.NewEncoder(out)
 	for {
 		select {
 		case <-ctx.Done():
@@ -85,6 +80,6 @@ func main() {
 		if e == nil {
 			return
 		}
-		events = append(events, e)
+		encoder.Encode(e)
 	}
 }
