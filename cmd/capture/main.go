@@ -63,7 +63,7 @@ func main() {
 	logger.Debug("attached")
 	defer links.Close()
 
-	rd, err := obj.NewReader(10, logger.With(zap.Namespace("perf_reader")))
+	rd, err := obj.NewReader(1<<8, logger.With(zap.Namespace("perf_reader")))
 	if err != nil {
 		logger.Error("cannot create reader", zap.Error(err))
 	}
@@ -76,7 +76,11 @@ func main() {
 			return
 		default:
 		}
-		e := rd.Read(m)
+		e, err := rd.Read(m)
+		if err != nil {
+			logger.Error("cannot read event", zap.Error(err))
+			return
+		}
 		if e == nil {
 			return
 		}

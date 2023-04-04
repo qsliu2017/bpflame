@@ -3,7 +3,6 @@ package bpf
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 
@@ -39,19 +38,13 @@ type Event struct {
 // Read reads the next event.
 //
 // It returns nil if the reader is closed.
-func (r *Reader) Read(m Map) *Event {
-	var e *rawEvent
-	for {
-		var err error
-		e, err = r.read()
-		r.logger.Debug("read raw event", zap.Error(err), zap.Any("event", e))
-		if err != nil {
-			continue
-		}
-		if e == nil {
-			return nil
-		}
-		break
+func (r *Reader) Read(m Map) (*Event, error) {
+	e, err := r.read()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, nil
 	}
 
 	probe, isRet := m.Get(e.Cookie)
@@ -60,7 +53,7 @@ func (r *Reader) Read(m Map) *Event {
 		Ts:    e.Ts,
 		Probe: probe,
 		IsRet: isRet,
-	}
+	}, nil
 }
 
 // rawEvent is the raw event format as it is passed from the BPF program to userspace.
@@ -77,9 +70,6 @@ func (r *Reader) read() (*rawEvent, error) {
 	record, err := r.rd.Read()
 	r.logger.Debug("read perf record", zap.Error(err), zap.Any("record", record))
 	if err != nil {
-		if errors.Is(err, perf.ErrClosed) {
-			return nil, nil
-		}
 		return nil, err
 	}
 
@@ -96,5 +86,5 @@ func (r *Reader) read() (*rawEvent, error) {
 }
 
 func (r *Reader) Close() error {
-	return close(r.rd)
+	return r.rd.Close()
 }
