@@ -29,7 +29,7 @@ func ReadFuncSymbolNames(ctx context.Context, logger *zap.Logger, binPath string
 		}
 		names = append(names, symbol.Name)
 	}
-	logger.Info("read function symbol names", zap.Int("n", len(names)), zap.String("path", binPath))
+	logger.Debug("read function symbol names", zap.Int("n", len(names)), zap.String("path", binPath))
 
 	return names, nil
 }

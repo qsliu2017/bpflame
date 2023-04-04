@@ -49,7 +49,7 @@ func main() {
 	if err != nil {
 		return
 	}
-	logger.Info("attached")
+	logger.Debug("attached")
 	defer links.Close()
 
 	rd, err := obj.NewReader(10, logger.With(zap.Namespace("perf_reader")))
